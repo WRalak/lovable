@@ -17,12 +17,14 @@ interface InputAreaProps {
   setShowHtmlInput: (show: boolean) => void;
   isLoading: boolean;
   onSend: () => void;
-  textareaRef: React.RefObject<HTMLTextAreaElement | null>;
-  fileInputRef: React.RefObject<HTMLInputElement | null>;
+  textareaRef: React.RefObject<HTMLTextAreaElement>;
+  fileInputRef: React.RefObject<HTMLInputElement>;
   isHome: boolean;
   onShowHistory: () => void;
   onCopyCode: () => void;
   onSaveToGithub: () => void;
+  recognitionRef: React.RefObject<any>;
+  onNewConversation?: () => void;
 }
 
 const InputArea: React.FC<InputAreaProps> = ({
@@ -46,8 +48,16 @@ const InputArea: React.FC<InputAreaProps> = ({
   onShowHistory,
   onCopyCode,
   onSaveToGithub,
+  recognitionRef,
+  onNewConversation,
 }) => {
-  const quickActions = ['Edtech App', 'Health care portal', 'E-commerce Website'];
+  const quickActions = [
+    { title: 'EdTech App', prompt: 'Build an edtech app with video lessons and quizzes' },
+    { title: 'Healthcare', prompt: 'Create a healthcare portal for patient management' },
+    { title: 'E-commerce', prompt: 'Develop an e-commerce website with shopping cart' },
+    { title: 'Task App', prompt: 'Build a task manager with drag and drop functionality' }
+  ];
+
   const attachmentOptions = [
     { icon: Image, label: 'Upload Image', type: 'image' },
     { icon: FileText, label: 'Upload PDF', type: 'file' },
@@ -98,13 +108,53 @@ const InputArea: React.FC<InputAreaProps> = ({
     setAttachments(attachments.filter(att => att.id !== id));
   };
 
-  const handleQuickAction = (action: string) => {
-    setInput(`Build a ${action}`);
+  const handleQuickAction = (prompt: string) => {
+    setInput(prompt);
+    // Focus the textarea after setting the prompt
+    setTimeout(() => {
+      textareaRef.current?.focus();
+    }, 100);
   };
 
   const toggleRecording = () => {
-    // Speech recognition implementation
-    setIsRecording(!isRecording);
+    if (!isRecording) {
+      if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
+        const SpeechRecognition = (window as any).webkitSpeechRecognition || (window as any).SpeechRecognition;
+        const recognition = new SpeechRecognition();
+        recognition.continuous = false;
+        recognition.interimResults = false;
+        recognition.lang = 'en-US';
+
+        recognition.onstart = () => {
+          setIsRecording(true);
+        };
+
+        recognition.onresult = (event: any) => {
+          const transcript = event.results[0][0].transcript;
+          setInput(prev => prev + (prev ? ' ' : '') + transcript);
+          setIsRecording(false);
+        };
+
+        recognition.onerror = (event: any) => {
+          console.error('Speech recognition error:', event.error);
+          setIsRecording(false);
+        };
+
+        recognition.onend = () => {
+          setIsRecording(false);
+        };
+
+        recognition.start();
+        recognitionRef.current = recognition;
+      } else {
+        alert('Speech recognition is not supported in your browser. Please use Chrome, Edge, or Safari.');
+      }
+    } else {
+      if (recognitionRef.current) {
+        recognitionRef.current.stop();
+      }
+      setIsRecording(false);
+    }
   };
 
   const handleKeyPress = (e: React.KeyboardEvent) => {
@@ -160,7 +210,7 @@ const InputArea: React.FC<InputAreaProps> = ({
               value={input}
               onChange={(e) => setInput(e.target.value)}
               onKeyPress={handleKeyPress}
-              placeholder="Ask Aiden"
+              placeholder="Describe what you want to build... (e.g., 'Create a todo app with React and Tailwind CSS')"
               className="flex-1 resize-none outline-none text-gray-900 placeholder-gray-400 text-base max-h-32"
               rows={1}
               style={{ minHeight: '24px' }}
@@ -169,7 +219,11 @@ const InputArea: React.FC<InputAreaProps> = ({
             <div className="flex gap-2 flex-shrink-0">
               <button
                 onClick={toggleRecording}
-                className={`p-1 hover:bg-gray-100 rounded-lg transition-colors ${isRecording ? 'text-red-500' : 'text-gray-900'} mt-1`}
+                className={`p-2 rounded-lg transition-colors mt-1 ${
+                  isRecording 
+                    ? 'bg-red-500 text-white hover:bg-red-600' 
+                    : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                }`}
               >
                 <Mic className="w-5 h-5" />
               </button>
@@ -188,43 +242,56 @@ const InputArea: React.FC<InputAreaProps> = ({
             </div>
           </div>
 
-          <div className="flex gap-2 flex-wrap pt-3 border-t border-gray-200 mt-3">
-            {isHome ? (
-              quickActions.map((action) => (
+          {/* Quick Actions - Only show when home AND no input */}
+          {isHome && !input.trim() && (
+            <div className="flex gap-2 flex-wrap pt-3 border-t border-gray-200 mt-3">
+              {quickActions.map((action) => (
                 <button
-                  key={action}
-                  onClick={() => handleQuickAction(action)}
-                  className="px-3 py-1.5 border border-gray-900 rounded-full text-sm text-gray-900 hover:bg-gray-50 transition-colors"
+                  key={action.title}
+                  onClick={() => handleQuickAction(action.prompt)}
+                  className="px-3 py-1.5 border border-gray-900 rounded-full text-sm text-gray-900 hover:bg-gray-50 transition-colors whitespace-nowrap"
                 >
-                  {action}
+                  {action.title}
                 </button>
-              ))
-            ) : (
-              <>
+              ))}
+            </div>
+          )}
+
+          {/* Tools - Show when not home */}
+          {!isHome && (
+            <div className="flex gap-2 flex-wrap pt-3 border-t border-gray-200 mt-3">
+              <button
+                onClick={() => setShowAttachModal(true)}
+                className="flex items-center gap-1.5 px-3 py-1.5 bg-gray-100 hover:bg-gray-200 rounded-full text-xs text-gray-700 transition-colors"
+              >
+                <Plus className="w-3 h-3" />
+                Add Files
+              </button>
+              <button
+                onClick={onCopyCode}
+                className="flex items-center gap-1.5 px-3 py-1.5 bg-gray-100 hover:bg-gray-200 rounded-full text-xs text-gray-700 transition-colors"
+              >
+                <Code className="w-3 h-3" />
+                Copy Code
+              </button>
+              <button
+                onClick={onSaveToGithub}
+                className="flex items-center gap-1.5 px-3 py-1.5 bg-gray-100 hover:bg-gray-200 rounded-full text-xs text-gray-700 transition-colors"
+              >
+                <Github className="w-3 h-3" />
+                Save to GitHub
+              </button>
+              {onNewConversation && (
                 <button
-                  onClick={() => setShowAttachModal(true)}
-                  className="flex items-center gap-1.5 px-3 py-1.5 bg-gray-100 hover:bg-gray-200 rounded-full text-xs text-gray-700 transition-colors"
+                  onClick={onNewConversation}
+                  className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-100 hover:bg-blue-200 text-blue-700 rounded-full text-xs transition-colors"
                 >
                   <Plus className="w-3 h-3" />
-                  Add
+                  New Chat
                 </button>
-                <button
-                  onClick={onCopyCode}
-                  className="flex items-center gap-1.5 px-3 py-1.5 bg-gray-100 hover:bg-gray-200 rounded-full text-xs text-gray-700 transition-colors"
-                >
-                  <Code className="w-3 h-3" />
-                  Copy Code
-                </button>
-                <button
-                  onClick={onSaveToGithub}
-                  className="flex items-center gap-1.5 px-3 py-1.5 bg-gray-100 hover:bg-gray-200 rounded-full text-xs text-gray-700 transition-colors"
-                >
-                  <Github className="w-3 h-3" />
-                  Save to GitHub
-                </button>
-              </>
-            )}
-          </div>
+              )}
+            </div>
+          )}
 
           {showAttachModal && (
             <div className="absolute bottom-full left-0 mb-2 bg-white border border-gray-900 rounded-xl shadow-lg p-2 z-10 min-w-48">
@@ -295,7 +362,7 @@ const InputArea: React.FC<InputAreaProps> = ({
           className="flex items-center gap-2 border-2 border-gray-900 rounded-2xl px-4 py-2 text-sm text-gray-900 hover:bg-gray-50 transition-colors"
         >
           <Clock className="w-4 h-4" />
-          Project History
+          History
         </button>
       </div>
     </div>

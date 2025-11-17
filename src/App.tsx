@@ -1,12 +1,12 @@
 import React, { useState, useRef, useEffect } from 'react';
 import type { Conversation, Message, Attachment } from '../types';
-import { sampleCode, simulateApiCall, truncateText } from '../src/utils';
-import Header from '../src/components/Header';
-import HistorySidebar from '../src/components/HistorySidebar';
-import MessagesArea from '../src/components/MessagesArea';
-import InputArea from '../src/components/InputArea';
-import PreviewArea from '../src/components/PreviewArea';
-import QuickActions from '../src/components/QuickActions';
+import { sampleCode, simulateApiCall, truncateText } from './utils';
+import Header from './components/Header';
+import HistorySidebar from './components/HistorySidebar';
+import MessagesArea from './components/MessagesArea';
+import InputArea from './components/InputArea';
+import PreviewArea from './components/PreviewArea';
+import QuickActions from './components/QuickActions';
 
 const AidenAppBuilder: React.FC = () => {
   const [conversations, setConversations] = useState<Conversation[]>([]);
@@ -27,8 +27,9 @@ const AidenAppBuilder: React.FC = () => {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const recognitionRef = useRef<any>(null);
 
-  const isHome = !currentConversation;
+  const isHome = !currentConversation && !currentArtifact;
 
   // Auto-expand textarea
   useEffect(() => {
@@ -42,6 +43,31 @@ const AidenAppBuilder: React.FC = () => {
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [currentConversation?.messages, isLoading]);
+
+  // Load conversations from localStorage on component mount
+  useEffect(() => {
+    const savedConversations = localStorage.getItem('aiden-conversations');
+    if (savedConversations) {
+      try {
+        const parsedConversations = JSON.parse(savedConversations);
+        setConversations(parsedConversations.map((conv: any) => ({
+          ...conv,
+          timestamp: new Date(conv.timestamp),
+          messages: conv.messages.map((msg: any) => ({
+            ...msg,
+            timestamp: new Date(msg.timestamp)
+          }))
+        })));
+      } catch (error) {
+        console.error('Error loading conversations from localStorage:', error);
+      }
+    }
+  }, []);
+
+  // Save conversations to localStorage whenever conversations change
+  useEffect(() => {
+    localStorage.setItem('aiden-conversations', JSON.stringify(conversations));
+  }, [conversations]);
 
   const handleSend = async () => {
     if (!input.trim() && attachments.length === 0) return;
@@ -57,6 +83,7 @@ const AidenAppBuilder: React.FC = () => {
     setIsLoading(true);
 
     try {
+      // Using mock API for demonstration
       const assistantMessage = await simulateApiCall(input);
 
       if (currentConversation) {
@@ -70,7 +97,7 @@ const AidenAppBuilder: React.FC = () => {
       } else {
         const newConversation: Conversation = {
           id: Date.now().toString(),
-          title: truncateText(input, 30) || 'Untitled Conversation',
+          title: input.split('\n')[0].substring(0, 30) || 'Untitled Conversation',
           messages: [userMessage, assistantMessage],
           timestamp: new Date()
         };
@@ -78,11 +105,42 @@ const AidenAppBuilder: React.FC = () => {
         setConversations([newConversation, ...conversations]);
       }
 
-      setCurrentArtifact(sampleCode);
+      if (assistantMessage.code) {
+        setCurrentArtifact(assistantMessage.code);
+      }
       
     } catch (error) {
       console.error('Error sending message:', error);
-      // Fallback handling...
+      // Fallback to mock response if API fails
+      const fallbackMessage: Message = {
+        id: (Date.now() + 1).toString(),
+        role: 'assistant',
+        content: `I'll help you build "${input}". Here's what I can create for you:`,
+        code: sampleCode,
+        hasArtifact: true,
+        timestamp: new Date()
+      };
+
+      if (currentConversation) {
+        const updatedConversation = {
+          ...currentConversation,
+          messages: [...currentConversation.messages, userMessage, fallbackMessage],
+          timestamp: new Date()
+        };
+        setCurrentConversation(updatedConversation);
+        setConversations(conversations.map(c => c.id === updatedConversation.id ? updatedConversation : c));
+      } else {
+        const newConversation: Conversation = {
+          id: Date.now().toString(),
+          title: input.split('\n')[0].substring(0, 30) || 'Untitled Conversation',
+          messages: [userMessage, fallbackMessage],
+          timestamp: new Date()
+        };
+        setCurrentConversation(newConversation);
+        setConversations([newConversation, ...conversations]);
+      }
+
+      setCurrentArtifact(sampleCode);
     } finally {
       setIsLoading(false);
       setInput('');
@@ -93,7 +151,7 @@ const AidenAppBuilder: React.FC = () => {
 
   const closePreview = () => {
     setCurrentArtifact(null);
-    setCurrentConversation(null);
+    setCurrentConversation(null); // Reset to home page
   };
 
   const loadConversation = (conversation: Conversation) => {
@@ -103,7 +161,15 @@ const AidenAppBuilder: React.FC = () => {
     if (lastMessage.hasArtifact && lastMessage.code) {
       setCurrentArtifact(lastMessage.code);
       setViewMode('preview');
+    } else {
+      setCurrentArtifact(null);
     }
+  };
+
+  const startNewConversation = () => {
+    setCurrentConversation(null);
+    setCurrentArtifact(null);
+    setInput('');
   };
 
   const deleteConversation = (conversationId: string, e: React.MouseEvent) => {
@@ -127,6 +193,35 @@ const AidenAppBuilder: React.FC = () => {
     ));
   };
 
+  const startEditingMessage = (messageId: string, content: string) => {
+    setEditingMessageId(messageId);
+    setEditedContent(content);
+  };
+
+  const saveEditedMessage = async (messageId: string) => {
+    if (!currentConversation) return;
+
+    const updatedMessages = currentConversation.messages.map(msg => 
+      msg.id === messageId ? { ...msg, content: editedContent } : msg
+    );
+
+    const updatedConversation = {
+      ...currentConversation,
+      messages: updatedMessages,
+      timestamp: new Date()
+    };
+
+    setCurrentConversation(updatedConversation);
+    setConversations(conversations.map(c => c.id === updatedConversation.id ? updatedConversation : c));
+    setEditingMessageId(null);
+    setEditedContent('');
+  };
+
+  const cancelEditing = () => {
+    setEditingMessageId(null);
+    setEditedContent('');
+  };
+
   // Sort conversations: pinned first, then by timestamp
   const sortedConversations = [...conversations].sort((a, b) => {
     if (a.pinned && !b.pinned) return -1;
@@ -144,32 +239,42 @@ const AidenAppBuilder: React.FC = () => {
         onDeleteConversation={deleteConversation}
         onShareConversation={shareConversation}
         onTogglePinConversation={togglePinConversation}
+        onNewConversation={startNewConversation}
       />
 
       <div className="flex-1 flex overflow-hidden">
+        {/* Left Side - Chat Area */}
         <div className={`flex flex-col ${currentArtifact ? 'w-1/2' : 'w-full'} transition-all duration-300`}>
-          {!isHome && currentConversation && (
-            <Header title={currentConversation.title} />
+          {currentConversation && (
+            <Header 
+              title={currentConversation.title} 
+              onNewConversation={startNewConversation}
+            />
           )}
 
           {isHome && (
-            <div className="flex-1 flex flex-col items-center justify-center px-4 py-8 sm:py-0">
-              <h1 className="text-3xl sm:text-4xl md:text-5xl font-semibold text-gray-800 mb-4 sm:mb-6 text-center">
-                Hi, I'm Aiden.<br />What can I help you build today?
-              </h1>
-             
+            <div className="flex-1 flex flex-col items-center justify-center px-4 py-8">
+              <div className="text-center mb-8">
+                <h1 className="text-3xl sm:text-4xl md:text-5xl font-semibold text-gray-800 mb-4">
+                  Hi, I'm Aiden.
+                </h1>
+                <p className="text-xl text-gray-600">
+                  What can I help you build today?
+                </p>
+              </div>
+              <QuickActions onQuickAction={setInput} />
             </div>
           )}
 
-          {!isHome && currentConversation && (
+          {currentConversation && (
             <MessagesArea
               messages={currentConversation.messages}
               isLoading={isLoading}
               editingMessageId={editingMessageId}
               editedContent={editedContent}
-              onStartEditing={setEditingMessageId}
-              onSaveEditing={() => {}} // Implement as needed
-              onCancelEditing={() => setEditingMessageId(null)}
+              onStartEditing={startEditingMessage}
+              onSaveEditing={saveEditedMessage}
+              onCancelEditing={cancelEditing}
               onSetEditedContent={setEditedContent}
               messagesEndRef={messagesEndRef}
             />
@@ -201,9 +306,12 @@ const AidenAppBuilder: React.FC = () => {
               }
             }}
             onSaveToGithub={() => alert('Save to GitHub functionality')}
+            recognitionRef={recognitionRef}
+            onNewConversation={startNewConversation}
           />
         </div>
 
+        {/* Right Side - Preview Area */}
         {currentArtifact && (
           <PreviewArea
             currentArtifact={currentArtifact}

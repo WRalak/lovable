@@ -1,6 +1,5 @@
-// components/MessagesArea.tsx
 import React from 'react';
-import { Edit2, Image, FileText, Link, X } from 'lucide-react';
+import { Edit2, Image, FileText, Link, X, Check } from 'lucide-react';
 import type { Message, Attachment } from '../../types';
 import { truncateText } from '../utils';
 
@@ -9,11 +8,11 @@ interface MessagesAreaProps {
   isLoading: boolean;
   editingMessageId: string | null;
   editedContent: string;
-  onStartEditing: (messageId: string) => void;
+  onStartEditing: (messageId: string, content: string) => void;
   onSaveEditing: (messageId: string) => void;
   onCancelEditing: () => void;
   onSetEditedContent: (content: string) => void;
-  messagesEndRef: React.RefObject<HTMLDivElement | null>;
+  messagesEndRef: React.RefObject<HTMLDivElement>;
 }
 
 const MessagesArea: React.FC<MessagesAreaProps> = ({
@@ -62,6 +61,7 @@ const MessagesArea: React.FC<MessagesAreaProps> = ({
                   onClick={() => onSaveEditing(message.id)}
                   className="flex items-center gap-1 px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-sm rounded-lg transition-colors"
                 >
+                  <Check className="w-4 h-4" />
                   Save & Submit
                 </button>
                 <button
@@ -76,7 +76,7 @@ const MessagesArea: React.FC<MessagesAreaProps> = ({
             <div className="group relative max-w-full sm:max-w-3xl">
               <div className={`${message.role === 'user' ? 'bg-black text-white' : 'bg-gray-100 text-gray-800'} rounded-2xl px-4 sm:px-5 py-3`}>
                 <p className="whitespace-pre-wrap break-words text-sm sm:text-base">
-                  {message.role === 'user' ? truncateText(message.content, 500) : message.content}
+                  {message.content}
                 </p>
                 
                 {message.attachments && message.attachments.length > 0 && (
@@ -87,11 +87,11 @@ const MessagesArea: React.FC<MessagesAreaProps> = ({
               </div>
               {message.role === 'user' && (
                 <button
-                  onClick={() => onStartEditing(message.id)}
-                  className="absolute top-2 -left-6 sm:-left-8 opacity-0 group-hover:opacity-100 p-1 hover:bg-gray-100 rounded transition-all"
+                  onClick={() => onStartEditing(message.id, message.content)}
+                  className="absolute top-2 -left-8 opacity-0 group-hover:opacity-100 p-1 hover:bg-gray-100 rounded transition-all"
                   title="Edit message"
                 >
-                  <Edit2 className="w-3 h-3 sm:w-4 sm:h-4 text-gray-500" />
+                  <Edit2 className="w-4 h-4 text-gray-500" />
                 </button>
               )}
             </div>
