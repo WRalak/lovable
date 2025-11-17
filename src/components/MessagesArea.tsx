@@ -52,14 +52,14 @@ const MessagesArea: React.FC<MessagesAreaProps> = ({
               <textarea
                 value={editedContent}
                 onChange={(e) => onSetEditedContent(e.target.value)}
-                className="w-full border-2 border-blue-500 rounded-2xl px-4 sm:px-5 py-3 text-gray-800 resize-none outline-none"
+                className="w-full border-2 border-gray-500 rounded-2xl px-4 sm:px-5 py-3 text-gray-800 resize-none outline-none"
                 rows={3}
                 autoFocus
               />
               <div className="flex gap-2 mt-2">
                 <button
                   onClick={() => onSaveEditing(message.id)}
-                  className="flex items-center gap-1 px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-sm rounded-lg transition-colors"
+                  className="flex items-center gap-1 px-3 py-1.5 bg-gray-900  text-white text-sm rounded-lg transition-colors"
                 >
                   <Check className="w-4 h-4" />
                   Save & Submit

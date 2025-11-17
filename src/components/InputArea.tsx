@@ -1,6 +1,6 @@
 import React from 'react';
-import { Plus, Mic, ArrowRight, Clock, X, Image, FileText, Link, Code, Github } from 'lucide-react';
-import type { Attachment } from '../../types';
+import { Plus, Mic, ArrowRight, Clock, X, Image, FileText, Link, Code, Github, Folder } from 'lucide-react';
+import type { Attachment } from '../types';
 
 interface InputAreaProps {
   input: string;
@@ -25,6 +25,7 @@ interface InputAreaProps {
   onSaveToGithub: () => void;
   recognitionRef: React.RefObject<any>;
   onNewConversation?: () => void;
+  onShowProjects?: () => void; // Add this prop
 }
 
 const InputArea: React.FC<InputAreaProps> = ({
@@ -50,12 +51,13 @@ const InputArea: React.FC<InputAreaProps> = ({
   onSaveToGithub,
   recognitionRef,
   onNewConversation,
+  onShowProjects, // Add this prop
 }) => {
   const quickActions = [
     { title: 'EdTech App', prompt: 'Build an edtech app with video lessons and quizzes' },
     { title: 'Healthcare', prompt: 'Create a healthcare portal for patient management' },
     { title: 'E-commerce', prompt: 'Develop an e-commerce website with shopping cart' },
-    { title: 'Task App', prompt: 'Build a task manager with drag and drop functionality' }
+    { title: 'Templates', prompt: 'Build a template with drag and drop functionality' }
   ];
 
   const attachmentOptions = [
@@ -210,8 +212,8 @@ const InputArea: React.FC<InputAreaProps> = ({
               value={input}
               onChange={(e) => setInput(e.target.value)}
               onKeyPress={handleKeyPress}
-              placeholder="Describe what you want to build... (e.g., 'Create a todo app with React and Tailwind CSS')"
-              className="flex-1 resize-none outline-none text-gray-900 placeholder-gray-400 text-base max-h-32"
+              placeholder="Describe what you want Aiden to build... "
+              className="flex-1 resize-none outline-none text-gray-900 placeholder-gray-500 text-base max-h-32"
               rows={1}
               style={{ minHeight: '24px' }}
             />
@@ -356,14 +358,24 @@ const InputArea: React.FC<InputAreaProps> = ({
         </div>
       </div>
 
-      <div className="flex justify-center mt-4">
+      <div className="flex justify-center gap-3 mt-4">
         <button 
           onClick={onShowHistory}
-          className="flex items-center gap-2 border-2 border-gray-900 rounded-2xl px-4 py-2 text-sm text-gray-900 hover:bg-gray-50 transition-colors"
+          className="flex items-center gap-2 border border-gray-900 rounded-2xl px-4 py-2 text-sm text-gray-900 hover:bg-gray-50 transition-colors"
         >
           <Clock className="w-4 h-4" />
-          History
+          Project History
         </button>
+        
+        {onShowProjects && (
+          <button
+            onClick={onShowProjects}
+            className="flex items-center gap-2 border border-gray-900 rounded-2xl px-4 py-2 text-sm text-gray-900 hover:bg-gray-50 transition-colors"
+          >
+            <Folder className="w-4 h-4" />
+            View Projects
+          </button>
+        )}
       </div>
     </div>
   );

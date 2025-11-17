@@ -1,12 +1,13 @@
 import React, { useState, useRef, useEffect } from 'react';
+import { toast } from 'react-toastify';
 import type { Conversation, Message, Attachment } from '../types';
-import { sampleCode, simulateApiCall, truncateText } from './utils';
+import { sampleCode, simulateApiCall } from './utils';
 import Header from './components/Header';
 import HistorySidebar from './components/HistorySidebar';
 import MessagesArea from './components/MessagesArea';
 import InputArea from './components/InputArea';
 import PreviewArea from './components/PreviewArea';
-import QuickActions from './components/QuickActions';
+import ProjectHistory from './components/ProjectHistory';
 
 const AidenAppBuilder: React.FC = () => {
   const [conversations, setConversations] = useState<Conversation[]>([]);
@@ -23,6 +24,9 @@ const AidenAppBuilder: React.FC = () => {
   const [htmlInput, setHtmlInput] = useState('');
   const [showHtmlInput, setShowHtmlInput] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [showProjects, setShowProjects] = useState(false);
+  const [showLoginModal, setShowLoginModal] = useState(false);
+  const [user, setUser] = useState(null);
 
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -167,9 +171,18 @@ const AidenAppBuilder: React.FC = () => {
   };
 
   const startNewConversation = () => {
+    console.log('startNewConversation called'); // Debug log
+    // Temporary: Skip user check for development
+    // if (!user) {
+    //   setShowLoginModal(true);
+    //   return;
+    // }
     setCurrentConversation(null);
     setCurrentArtifact(null);
     setInput('');
+    setShowHistory(false);
+    setShowProjects(false);
+    toast.info('Started new conversation');
   };
 
   const deleteConversation = (conversationId: string, e: React.MouseEvent) => {
@@ -183,7 +196,7 @@ const AidenAppBuilder: React.FC = () => {
 
   const shareConversation = (conversationId: string, e: React.MouseEvent) => {
     e.stopPropagation();
-    alert(`Share conversation ${conversationId} - This would open share dialog`);
+    toast.info(`Share conversation ${conversationId} - This would open share dialog`);
   };
 
   const togglePinConversation = (conversationId: string, e: React.MouseEvent) => {
@@ -242,6 +255,17 @@ const AidenAppBuilder: React.FC = () => {
         onNewConversation={startNewConversation}
       />
 
+      <ProjectHistory
+        showProjects={showProjects}
+        setShowProjects={setShowProjects}
+        conversations={sortedConversations}
+        onLoadConversation={loadConversation}
+        onDeleteConversation={deleteConversation}
+        onShareConversation={shareConversation}
+        onTogglePinConversation={togglePinConversation}
+        onNewConversation={startNewConversation}
+      />
+
       <div className="flex-1 flex overflow-hidden">
         {/* Left Side - Chat Area */}
         <div className={`flex flex-col ${currentArtifact ? 'w-1/2' : 'w-full'} transition-all duration-300`}>
@@ -256,13 +280,10 @@ const AidenAppBuilder: React.FC = () => {
             <div className="flex-1 flex flex-col items-center justify-center px-4 py-8">
               <div className="text-center mb-8">
                 <h1 className="text-3xl sm:text-4xl md:text-5xl font-semibold text-gray-800 mb-4">
-                  Hi, I'm Aiden.
-                </h1>
-                <p className="text-xl text-gray-600">
+                  Hi, I'm Aiden. <br />
                   What can I help you build today?
-                </p>
+                </h1>
               </div>
-              <QuickActions onQuickAction={setInput} />
             </div>
           )}
 
@@ -295,6 +316,8 @@ const AidenAppBuilder: React.FC = () => {
             setShowHtmlInput={setShowHtmlInput}
             isLoading={isLoading}
             onSend={handleSend}
+            onShowProjects={() => setShowProjects(true)}
+            onNewConversation={startNewConversation}
             textareaRef={textareaRef}
             fileInputRef={fileInputRef}
             isHome={isHome}
@@ -302,12 +325,11 @@ const AidenAppBuilder: React.FC = () => {
             onCopyCode={() => {
               if (currentArtifact) {
                 navigator.clipboard.writeText(currentArtifact);
-                alert('Code copied to clipboard!');
+                toast.success('Code copied to clipboard!');
               }
             }}
-            onSaveToGithub={() => alert('Save to GitHub functionality')}
+            onSaveToGithub={() => toast.info('Save to GitHub functionality')}
             recognitionRef={recognitionRef}
-            onNewConversation={startNewConversation}
           />
         </div>
 
