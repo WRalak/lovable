@@ -1,10 +1,10 @@
 import React from 'react';
 import { Plus, Mic, ArrowRight, Clock, X, Image, FileText, Link, Code, Github, Folder } from 'lucide-react';
-import type { Attachment } from '../types';
+import type { Attachment } from '../../types';
 
 interface InputAreaProps {
   input: string;
-  setInput: (input: string) => void;
+  setInput: React.Dispatch<React.SetStateAction<string>>;
   attachments: Attachment[];
   setAttachments: (attachments: Attachment[]) => void;
   showAttachModal: boolean;
@@ -25,7 +25,7 @@ interface InputAreaProps {
   onSaveToGithub: () => void;
   recognitionRef: React.RefObject<any>;
   onNewConversation?: () => void;
-  onShowProjects?: () => void; // Add this prop
+  onShowProjects?: () => void;
 }
 
 const InputArea: React.FC<InputAreaProps> = ({
@@ -51,7 +51,7 @@ const InputArea: React.FC<InputAreaProps> = ({
   onSaveToGithub,
   recognitionRef,
   onNewConversation,
-  onShowProjects, // Add this prop
+  onShowProjects,
 }) => {
   const quickActions = [
     { title: 'EdTech App', prompt: 'Build an edtech app with video lessons and quizzes' },
@@ -112,49 +112,90 @@ const InputArea: React.FC<InputAreaProps> = ({
 
   const handleQuickAction = (prompt: string) => {
     setInput(prompt);
-    // Focus the textarea after setting the prompt
     setTimeout(() => {
       textareaRef.current?.focus();
     }, 100);
   };
 
-  const toggleRecording = () => {
-    if (!isRecording) {
-      if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
-        const SpeechRecognition = (window as any).webkitSpeechRecognition || (window as any).SpeechRecognition;
-        const recognition = new SpeechRecognition();
-        recognition.continuous = false;
-        recognition.interimResults = false;
-        recognition.lang = 'en-US';
+  // Check if speech recognition is supported
+  const isSpeechRecognitionSupported = () => {
+    return 'webkitSpeechRecognition' in window || 'SpeechRecognition' in window;
+  };
 
-        recognition.onstart = () => {
-          setIsRecording(true);
-        };
-
-        recognition.onresult = (event: any) => {
-          const transcript = event.results[0][0].transcript;
-          setInput(prev => prev + (prev ? ' ' : '') + transcript);
-          setIsRecording(false);
-        };
-
-        recognition.onerror = (event: any) => {
-          console.error('Speech recognition error:', event.error);
-          setIsRecording(false);
-        };
-
-        recognition.onend = () => {
-          setIsRecording(false);
-        };
-
-        recognition.start();
-        recognitionRef.current = recognition;
-      } else {
-        alert('Speech recognition is not supported in your browser. Please use Chrome, Edge, or Safari.');
-      }
-    } else {
+  const toggleRecording = async () => {
+    if (isRecording) {
+      // Stop recording
       if (recognitionRef.current) {
         recognitionRef.current.stop();
       }
+      setIsRecording(false);
+      return;
+    }
+
+    // Check browser support
+    if (!isSpeechRecognitionSupported()) {
+      alert('Speech recognition is not supported in your browser. Please use Chrome, Edge, or Safari.');
+      return;
+    }
+
+    try {
+    // Initialize speech recognition directly without pre-requesting permissions
+    const SpeechRecognition = (window as any).webkitSpeechRecognition || (window as any).SpeechRecognition;
+    const recognition = new SpeechRecognition();
+    
+    recognition.continuous = false;
+      recognition.interimResults = false;
+      recognition.lang = 'en-US';
+      recognition.maxAlternatives = 1;
+
+      recognition.onstart = () => {
+        setIsRecording(true);
+      };
+
+      recognition.onresult = (event: any) => {
+        const transcript = event.results[0][0].transcript;
+        setInput(prev => prev + (prev ? ' ' : '') + transcript);
+        setIsRecording(false);
+      };
+
+      recognition.onerror = (event: any) => {
+        console.error('Speech recognition error:', event.error);
+        
+        switch (event.error) {
+          case 'not-allowed':
+          case 'permission-denied':
+            alert('Microphone access was denied. Please allow microphone access in your browser settings and refresh the page.');
+            break;
+          case 'audio-capture':
+            alert('No microphone was found. Please ensure a microphone is connected and try again.');
+            break;
+          case 'network':
+            alert('Network error occurred during speech recognition. Please check your connection.');
+            break;
+          case 'no-speech':
+            alert('No speech was detected. Please try speaking again.');
+            break;
+          case 'aborted':
+            // User aborted the recording, no need to show error
+            break;
+          default:
+            alert('Speech recognition failed. Please try again.');
+        }
+        
+        setIsRecording(false);
+      };
+
+      recognition.onend = () => {
+        setIsRecording(false);
+      };
+
+      // Start recognition - this will trigger the permission prompt
+      recognition.start();
+      recognitionRef.current = recognition;
+      
+    } catch (error) {
+      console.error('Error starting speech recognition:', error);
+      alert('Failed to start speech recognition. Please try again.');
       setIsRecording(false);
     }
   };
@@ -221,11 +262,15 @@ const InputArea: React.FC<InputAreaProps> = ({
             <div className="flex gap-2 flex-shrink-0">
               <button
                 onClick={toggleRecording}
+                disabled={!isSpeechRecognitionSupported()}
                 className={`p-2 rounded-lg transition-colors mt-1 ${
                   isRecording 
                     ? 'bg-red-500 text-white hover:bg-red-600' 
-                    : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                    : isSpeechRecognitionSupported()
+                    ? 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                    : 'bg-gray-100 text-gray-400 cursor-not-allowed'
                 }`}
+                title={isSpeechRecognitionSupported() ? "Voice input" : "Speech recognition not supported"}
               >
                 <Mic className="w-5 h-5" />
               </button>
@@ -347,7 +392,7 @@ const InputArea: React.FC<InputAreaProps> = ({
                   <button
                     onClick={handleHtmlSubmit}
                     disabled={!htmlInput.trim()}
-                    className="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-sm rounded-lg transition-colors disabled:bg-gray-300 disabled:cursor-not-allowed"
+                    className="px-3 py-1.5 bg-black text-white text-sm rounded-lg transition-colors disabled:bg-gray-300 disabled:cursor-not-allowed"
                   >
                     Add HTML
                   </button>

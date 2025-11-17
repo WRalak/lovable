@@ -1,7 +1,6 @@
 import React from 'react';
 import { Edit2, Image, FileText, Link, X, Check } from 'lucide-react';
 import type { Message, Attachment } from '../../types';
-import { truncateText } from '../utils';
 
 interface MessagesAreaProps {
   messages: Message[];

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { X, Folder, MoreVertical, Pin, Share2, Trash2, Eye, Download } from 'lucide-react';
-import type { Conversation } from '../types';
+import type { Conversation } from '../../types';
 import { truncateText } from '../utils';
 
 interface ProjectHistoryProps {
@@ -73,7 +73,7 @@ const ProjectHistory: React.FC<ProjectHistoryProps> = ({
 
   const getProjectPreview = (conversation: Conversation) => {
     // Get the first code artifact or return a default preview
-    const codeMessage = conversation.messages.find(msg => msg.hasArtifact && msg.code);
+    const codeMessage = conversation.messages.find((msg) => msg.hasArtifact && msg.code);
     if (codeMessage?.code) {
       return {
         hasCode: true,
@@ -95,6 +95,7 @@ const ProjectHistory: React.FC<ProjectHistoryProps> = ({
       'bg-gradient-to-br from-pink-500 to-pink-600',
       'bg-gradient-to-br from-indigo-500 to-indigo-600'
     ];
+    // eslint-disable-next-line react-hooks/purity
     const index = parseInt(id) % colors.length || Math.floor(Math.random() * colors.length);
     return colors[index];
   };
